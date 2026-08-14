@@ -273,52 +273,19 @@ function startPayment(event){
   const pin=document.getElementById('custPin').value.trim();
   const address=document.getElementById('custAddress').value.trim();
   const total=cartTotal();
-
+  if(!cart.length || total<=0){ alert('Cart is empty.'); return; }
   if(!name || !/^\d{10}$/.test(phone) || !/^\d{6}$/.test(pin) || !address){
-    alert('Please fill all delivery details correctly.');
-    return;
+    alert('Please fill Name, 10-digit Mobile, 6-digit PIN and full Delivery Address correctly.'); return;
   }
-
-  const order={
-    orderId:'NS'+Date.now(),
-    name,phone,pin,address,
-    items:cart.map(x=>({...x})),
-    total,
-    upi:'hackerking0982-3@oksbi',
-    createdAt:new Date().toISOString()
-  };
+  const orderId='NS'+Date.now();
+  const order={orderId,name,phone,pin,address,items:cart.map(x=>({...x})),total,upi:'hackerking0982-3@oksbi',createdAt:new Date().toISOString()};
   localStorage.setItem('newshop_pending_order',JSON.stringify(order));
-
   const upi='hackerking0982-3@oksbi';
-  const txn='NS'+Date.now();
-  const params='pa='+encodeURIComponent(upi)+
-    '&pn='+encodeURIComponent('New Shop')+
-    '&am='+encodeURIComponent(total.toFixed(2))+
-    '&cu=INR'+
-    '&tr='+encodeURIComponent(txn)+
-    '&tn='+encodeURIComponent('Order '+order.orderId)+
-    '&url='+encodeURIComponent('https://newshoponline.github.io/NEW-SHOP/');
-
-  // Use Android's standard UPI intent format first. It lets Android choose an
-  // installed UPI app instead of repeatedly routing through a browser fallback.
-  const intentUrl='intent://pay?'+params+'#Intent;scheme=upi;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end';
-  const upiUrl='upi://pay?'+params;
-  let opened=false;
-  try{
-    window.location.href=intentUrl;
-    opened=true;
-  }catch(e){
-    opened=false;
-  }
-  // Keep a fallback button visible if Android/browser does not handle intent://.
-  setTimeout(()=>{
-    if(document.visibilityState==='visible'){
-      const box=document.getElementById('cartContent');
-      if(box){
-        box.innerHTML=`<h2>Open UPI Payment</h2><p>Order <b>${order.orderId}</b> • Total <b>₹${total.toFixed(2)}</b></p><p style="color:#666">Choose your installed UPI app below. Do not press the payment button repeatedly.</p><div class="cartactions"><button class="black" onclick="window.location.href='${upiUrl}'">Open UPI App</button><button onclick="openCart()">Back to Cart</button></div>`;
-      }
-    }
-  },1200);
+  const params=new URLSearchParams({pa:upi,pn:'NEW SHOP',am:total.toFixed(2),cu:'INR',tn:'Order '+orderId});
+  const url='upi://pay?'+params.toString();
+  const popup=document.getElementById('paymentStatus');
+  if(popup) popup.textContent='Opening your UPI app…';
+  window.location.assign(url);
 }
 
 function buyNow(id){
