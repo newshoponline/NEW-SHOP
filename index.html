@@ -46,13 +46,23 @@ del{color:#888;font-size:13px;font-weight:400}
 .viewbuttons button{background:#eee}
 .phoneview{margin-top:12px;text-align:center}
 .phoneview img{max-height:300px;max-width:100%;object-fit:contain;border-radius:12px}
+
+.carttop{background:#222;color:#fff;padding:6px 10px;border-radius:8px;border:1px solid #555;font-weight:700}
+.checkout{display:grid;gap:12px}
+.checkout label{font-size:13px;font-weight:700}
+.checkout input,.checkout textarea,.checkout select{width:100%;padding:11px 12px;border:1px solid #ccc;border-radius:8px;font:inherit}
+.checkout textarea{min-height:75px;resize:vertical}
+.cartitem{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #eee}
+.cartactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.paybox{background:#f7f7f7;border-radius:10px;padding:12px;margin-top:10px}
+
 @media(max-width:750px){.hero{grid-template-columns:1fr;padding:20px}.hero h1{font-size:34px}.hero .price{font-size:32px}.header{flex-wrap:wrap}}
 
 .phoneview{touch-action:pan-x;overflow:hidden;text-align:center}.phoneview img{width:100%;max-height:340px;object-fit:contain;border-radius:12px}.viewbuttons{display:flex;gap:7px;overflow-x:auto;margin:10px 0}.viewbuttons button{white-space:nowrap;background:#eee}
 </style>
 </head>
 <body>
-<div class="top"><span>🚚 Free Delivery (2–5 Days)</span><span>📱 iPhone Catalog</span><span>🏷️ Limited-Time Offers</span><span>🛒 Cart: <b id="cartCount">0</b></span></div>
+<div class="top"><span>🚚 Free Delivery (2–5 Days)</span><span>📱 iPhone Catalog</span><span>🏷️ Limited-Time Offers</span><button class="carttop" onclick="openCart()" aria-label="Open cart">🛒 Cart: <b id="cartCount">0</b></button></div>
 <header class="header">
   <div class="logo">📱 NEW SHOP</div>
   <div class="search"><input id="search" placeholder="Search iPhone model, storage or color"><button class="black" onclick="filter()">Search</button></div>
@@ -104,6 +114,13 @@ del{color:#888;font-size:13px;font-weight:400}
  <div class="modalbox">
   <button style="float:right" onclick="closeModal()">✕</button>
   <div id="modalContent"></div>
+ </div>
+</div>
+
+<div id="cartModal" class="modal" onclick="if(event.target===this)closeCart()">
+ <div class="modalbox">
+  <button style="float:right" onclick="closeCart()">✕</button>
+  <div id="cartContent"></div>
  </div>
 </div>
 
@@ -162,31 +179,135 @@ function showView(i){
 
 
 let cart = JSON.parse(localStorage.getItem('newshop_cart') || '[]');
+
 function updateCart(){
-  document.getElementById('cartCount').textContent = cart.length;
+  document.getElementById('cartCount').textContent = cart.reduce((sum,item)=>sum+(item.qty||1),0);
   localStorage.setItem('newshop_cart', JSON.stringify(cart));
 }
+
 function addToCart(id){
   const p=products.find(x=>x.id===id);
   if(!p) return;
-  cart.push({id:p.id,name:p.name,storage:p.storage,color:p.color,price:1499});
+  const existing=cart.find(x=>x.id===p.id);
+  if(existing) existing.qty=(existing.qty||1)+1;
+  else cart.push({id:p.id,name:p.name,storage:p.storage,color:p.color,price:1499,qty:1});
   updateCart();
-  alert(p.name+' added to cart.');
+  openCart();
 }
+
+function removeFromCart(id){
+  cart=cart.filter(x=>x.id!==id);
+  updateCart();
+  openCart();
+}
+
+function changeQty(id,delta){
+  const item=cart.find(x=>x.id===id);
+  if(!item) return;
+  item.qty=(item.qty||1)+delta;
+  if(item.qty<=0) removeFromCart(id);
+  else { updateCart(); openCart(); }
+}
+
+function cartTotal(){
+  return cart.reduce((sum,item)=>sum+(Number(item.price)||1499)*(item.qty||1),0);
+}
+
+function openCart(){
+  const box=document.getElementById('cartContent');
+  if(!cart.length){
+    box.innerHTML=`<h2>Your Cart</h2><p>Your cart is empty.</p><button class="black" onclick="closeCart()">Continue Shopping</button>`;
+  }else{
+    box.innerHTML=`
+      <h2>Your Cart</h2>
+      <div>${cart.map(item=>`
+        <div class="cartitem">
+          <div><b>${item.name}</b><br><small>${item.storage} • ${item.color}</small><br>₹${item.price} × ${item.qty||1}</div>
+          <div>
+            <button onclick="changeQty(${item.id},-1)">−</button>
+            <button onclick="changeQty(${item.id},1)">+</button>
+            <button onclick="removeFromCart(${item.id})">Remove</button>
+          </div>
+        </div>`).join('')}</div>
+      <p><b>Total: ₹${cartTotal().toFixed(2)}</b></p>
+      <div class="cartactions">
+        <button class="black" onclick="showCheckout()">Enter Delivery Address & Pay</button>
+        <button onclick="closeCart()">Continue Shopping</button>
+      </div>`;
+  }
+  document.getElementById('cartModal').style.display='flex';
+}
+
+function closeCart(){document.getElementById('cartModal').style.display='none';}
+
+function showCheckout(){
+  if(!cart.length) return openCart();
+  const total=cartTotal();
+  document.getElementById('cartContent').innerHTML=`
+    <h2>Delivery Details</h2>
+    <form id="checkoutForm" class="checkout" onsubmit="startPayment(event)">
+      <label>Full Name<input id="custName" required autocomplete="name" placeholder="Your name"></label>
+      <label>Mobile Number<input id="custPhone" required inputmode="numeric" pattern="[0-9]{10}" maxlength="10" autocomplete="tel" placeholder="10-digit mobile number"></label>
+      <label>PIN Code<input id="custPin" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="postal-code" placeholder="6-digit PIN code"></label>
+      <label>Address<textarea id="custAddress" required autocomplete="street-address" placeholder="House no., street, village/city, district, state"></textarea></label>
+      <label>Payment Method
+        <select id="paymentMethod">
+          <option value="upi">UPI</option>
+        </select>
+      </label>
+      <div class="paybox">
+        <b>Order Total: ₹${total.toFixed(2)}</b><br>
+        <small>UPI ID: hackerking0982-3@oksbi</small>
+      </div>
+      <div class="cartactions">
+        <button class="black" type="submit">Pay ₹${total.toFixed(2)} with UPI</button>
+        <button type="button" onclick="openCart()">Back to Cart</button>
+      </div>
+    </form>`;
+}
+
+function startPayment(event){
+  event.preventDefault();
+  const name=document.getElementById('custName').value.trim();
+  const phone=document.getElementById('custPhone').value.trim();
+  const pin=document.getElementById('custPin').value.trim();
+  const address=document.getElementById('custAddress').value.trim();
+  const total=cartTotal();
+
+  if(!name || !/^\d{10}$/.test(phone) || !/^\d{6}$/.test(pin) || !address){
+    alert('Please fill all delivery details correctly.');
+    return;
+  }
+
+  const order={
+    orderId:'NS'+Date.now(),
+    name,phone,pin,address,
+    items:cart.map(x=>({...x})),
+    total,
+    upi:'hackerking0982-3@oksbi',
+    createdAt:new Date().toISOString()
+  };
+  localStorage.setItem('newshop_pending_order',JSON.stringify(order));
+
+  const upi='hackerking0982-3@oksbi';
+  const url='upi://pay?pa='+encodeURIComponent(upi)+
+    '&pn='+encodeURIComponent('New Shop')+
+    '&am='+encodeURIComponent(total.toFixed(2))+
+    '&cu=INR&tn='+encodeURIComponent('Order '+order.orderId);
+
+  // Use the same-page UPI intent. On Android this should hand off to an installed UPI app.
+  window.location.href=url;
+}
+
 function buyNow(id){
   const p=products.find(x=>x.id===id);
   if(!p) return;
-  const upi='hackerking0982-3@oksbi';
-  const amount='1499.00';
-  const url='upi://pay?pa='+encodeURIComponent(upi)+'&pn='+encodeURIComponent('New Shop')+'&am='+amount+'&cu=INR&tn='+encodeURIComponent('Order '+p.name);
-  const w=window.open(url,'_blank');
-  if(!w) window.location.href=url;
+  cart=[{id:p.id,name:p.name,storage:p.storage,color:p.color,price:1499,qty:1}];
+  updateCart();
+  openCart();
+  showCheckout();
 }
 
-function closeModal(){document.getElementById('modal').style.display='none';}
-function paymentInfo(){
-  const upi='hackerking0982-3@oksbi'; const url='upi://pay?pa='+encodeURIComponent(upi)+'&pn='+encodeURIComponent('New Shop')+'&am=1499&cu=INR&tn='+encodeURIComponent('Payment to New Shop'); window.location.href=url;
-}
 function filter(){
   const q=document.getElementById('search').value.toLowerCase().trim();
   if(!q) return render();
