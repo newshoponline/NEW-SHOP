@@ -59,6 +59,26 @@ del{color:#888;font-size:13px;font-weight:400}
 @media(max-width:750px){.hero{grid-template-columns:1fr;padding:20px}.hero h1{font-size:34px}.hero .price{font-size:32px}.header{flex-wrap:wrap}}
 
 .phoneview{touch-action:pan-x;overflow:hidden;text-align:center}.phoneview img{width:100%;max-height:340px;object-fit:contain;border-radius:12px}.viewbuttons{display:flex;gap:7px;overflow-x:auto;margin:10px 0}.viewbuttons button{white-space:nowrap;background:#eee}
+
+.gallery-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.modal-x{width:44px;height:44px;border:0;border-radius:12px;background:#f1f1f1;font-size:30px;line-height:1;cursor:pointer}
+.gallery-stage{min-height:330px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:18px;background:#f7f7f7;margin:10px 0}
+.gallery-stage img{width:100%;height:330px;object-fit:contain;transition:.25s}
+.gallery-stage img.front-view{object-position:52% center}
+.gallery-stage img.back-view{object-position:36% center}
+.gallery-stage img.side-view{object-position:48% center;transform:scale(1.55)}
+.gallery-stage img.charging-view{object-position:50% 92%;transform:scale(1.65)}
+.viewbuttons,.color-picker{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.viewbuttons button,.color-chip{border:1px solid #ddd;border-radius:12px;padding:10px 12px;background:#f4f4f4;cursor:pointer}
+.viewbuttons button.active,.color-chip.selected{background:#111;color:#fff;border-color:#111}
+.color-title{display:flex;justify-content:space-between;gap:12px;margin-top:12px}
+.color-chip{display:flex;align-items:center;gap:7px}
+.swatch{width:18px;height:18px;border-radius:50%;display:inline-block;border:1px solid #aaa}
+.swatch-0{background:#c8c0b5}.swatch-1{background:#4d566b}.swatch-2{background:#eee}.swatch-3{background:#343434}
+.demo-notice{padding:10px 12px;border-radius:12px;background:#fff3cd;color:#664d03;font-size:13px;margin:10px 0}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap}
+.modal-actions button{flex:1;min-width:110px}
+
 </style>
 </head>
 <body>
@@ -155,27 +175,78 @@ function render(list=products.slice(0,40)){
     </article>`).join('');
 }
 
+function productGallery(p){
+  // Official Apple product imagery for iPhone 15 Pro Max. Other products keep their supplied image.
+  const is15PM = /iPhone 15 Pro Max/i.test(p.name);
+  if(!is15PM) return {colors:[{name:p.color,img:p.img}], active:0};
+  const colors=[
+    {name:'Natural Titanium',img:'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-7inch-naturaltitanium?wid=2560&hei=1440&fmt=p-jpg&qlt=80'},
+    {name:'Blue Titanium',img:'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-7inch-bluetitanium?wid=2560&hei=1440&fmt=p-jpg&qlt=80'},
+    {name:'White Titanium',img:'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-7inch-whitetitanium?wid=2560&hei=1440&fmt=p-jpg&qlt=80'},
+    {name:'Black Titanium',img:'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-7inch-blacktitanium?wid=2560&hei=1440&fmt=p-jpg&qlt=80'}
+  ];
+  return {colors,active:0};
+}
+
 function openProduct(index){
   const p=products[index] || products[0];
-  const views=[p.img,p.img,p.img,p.img];
-  window.currentViews=views; window.currentView=0;
-  document.getElementById('modalContent').innerHTML=`
-    <h2>${p.name}</h2>
-    <div class="phoneview"><img id="detailMainImg" src="${p.img}" alt="${p.name}"></div>
-    <div class="viewbuttons">
-      <button onclick="showView(0)">Front</button><button onclick="showView(1)">Back</button><button onclick="showView(2)">Side</button><button onclick="showView(3)">Charging</button>
-    </div>
-    <p><b>Model:</b> ${p.name}<br><b>Storage:</b> ${p.storage}<br><b>Color:</b> ${p.color}<br><b>Price:</b> ₹2,499 <del>₹3,999</del></p>
-    <p style="color:#666">Illustrative product visuals. Verify actual device, authenticity, warranty, stock and final price before purchase.</p>
-    <button class="black" onclick="addToCart(${p.id});closeModal()">Add to Cart</button>
-    <button class="black" style="margin-top:8px" onclick="buyNow(${p.id})">Buy Now</button>
-    <button onclick="closeModal()" style="margin-top:8px">Close</button>`;
+  const g=productGallery(p);
+  window.galleryProduct=p;
+  window.galleryColors=g.colors;
+  window.currentColor=0;
+  window.currentView=0;
+  renderGalleryModal();
   document.getElementById('modal').style.display='flex';
+  document.body.classList.add('modal-open');
+}
+
+function renderGalleryModal(){
+  const p=window.galleryProduct || products[0];
+  const colors=window.galleryColors || [{name:p.color,img:p.img}];
+  const color=colors[window.currentColor||0];
+  const base=color.img;
+  // The official product image contains front + back together. View buttons remain fully interactive;
+  // side/charging use focused crops of the same official image so every control works without fake files.
+  const views=[
+    {label:'Front',src:base,cls:'front-view'},
+    {label:'Back',src:base,cls:'back-view'},
+    {label:'Side',src:base,cls:'side-view'},
+    {label:'Charging',src:base,cls:'charging-view'}
+  ];
+  window.currentViews=views;
+  const i=window.currentView||0;
+  document.getElementById('modalContent').innerHTML=`
+    <div class="gallery-head"><h2>${p.name}</h2><button class="modal-x" type="button" aria-label="Close" onclick="closeModal()">×</button></div>
+    <div class="phoneview gallery-stage"><img id="detailMainImg" class="${views[i].cls}" src="${views[i].src}" alt="${p.name} ${color.name}" onerror="this.onerror=null;this.src='${p.img}'"></div>
+    <div class="viewbuttons">
+      ${views.map((v,n)=>`<button type="button" class="${i===n?'active':''}" onclick="showView(${n})">${v.label}</button>`).join('')}
+    </div>
+    <div class="color-title"><b>Choose colour</b><span>${color.name}</span></div>
+    <div class="color-picker">
+      ${colors.map((c,n)=>`<button type="button" class="color-chip ${n===(window.currentColor||0)?'selected':''}" onclick="selectColor(${n})"><span class="swatch swatch-${n}"></span>${c.name}</button>`).join('')}
+    </div>
+    <p><b>Model:</b> ${p.name}<br><b>Storage:</b> ${p.storage}<br><b>Colour:</b> ${color.name}<br><b>Price:</b> ₹2,499 <del>₹3,999</del></p>
+    <p style="color:#666">Product imagery is from Apple's published product materials. Verify authenticity, warranty, stock and final price before purchase.</p>
+    <div class="demo-notice">DEMO STORE • Payment is disabled until the product, seller and stock are verified.</div>
+    <div class="modal-actions"><button class="black" type="button" onclick="addToCart(${p.id});closeModal()">Add to Cart</button><button class="black" type="button" onclick="buyNow(${p.id})">Buy Now</button><button type="button" onclick="closeModal()">Close</button></div>`;
+}
+
+function selectColor(n){
+  window.currentColor=n;
+  renderGalleryModal();
 }
 function showView(i){
-  window.currentView=i; const img=document.getElementById('detailMainImg');
-  if(img && window.currentViews) img.src=window.currentViews[i];
+  window.currentView=i;
+  renderGalleryModal();
 }
+function closeModal(){
+  const m=document.getElementById('modal');
+  if(m) m.style.display='none';
+  document.body.classList.remove('modal-open');
+}
+
+window.addEventListener('keydown',e=>{if(e.key==='Escape') closeModal();});
+window.addEventListener('click',e=>{const m=document.getElementById('modal');if(m && e.target===m) closeModal();});
 
 
 let cart = JSON.parse(localStorage.getItem('newshop_cart') || '[]');
@@ -268,24 +339,15 @@ function showCheckout(){
 
 function startPayment(event){
   event.preventDefault();
-  const name=document.getElementById('custName').value.trim();
-  const phone=document.getElementById('custPhone').value.trim();
-  const pin=document.getElementById('custPin').value.trim();
-  const address=document.getElementById('custAddress').value.trim();
-  const total=cartTotal();
-  if(!cart.length || total<=0){ alert('Cart is empty.'); return; }
+  const name=document.getElementById('custName')?.value.trim();
+  const phone=document.getElementById('custPhone')?.value.trim();
+  const pin=document.getElementById('custPin')?.value.trim();
+  const address=document.getElementById('custAddress')?.value.trim();
   if(!name || !/^\d{10}$/.test(phone) || !/^\d{6}$/.test(pin) || !address){
-    alert('Please fill Name, 10-digit Mobile, 6-digit PIN and full Delivery Address correctly.'); return;
+    alert('Please fill Name, 10-digit Mobile, 6-digit PIN and full Delivery Address correctly.');
+    return;
   }
-  const orderId='NS'+Date.now();
-  const order={orderId,name,phone,pin,address,items:cart.map(x=>({...x})),total,upi:'hackerking0982-3@oksbi',createdAt:new Date().toISOString()};
-  localStorage.setItem('newshop_pending_order',JSON.stringify(order));
-  const upi='hackerking0982-3@oksbi';
-  const params=new URLSearchParams({pa:upi,pn:'NEW SHOP',am:total.toFixed(2),cu:'INR',tn:'Order '+orderId});
-  const url='upi://pay?'+params.toString();
-  const popup=document.getElementById('paymentStatus');
-  if(popup) popup.textContent='Opening your UPI app…';
-  window.location.assign(url);
+  alert('Demo store: payment is disabled. Verify the seller, product authenticity, stock and final price before enabling real payments.');
 }
 
 function buyNow(id){
