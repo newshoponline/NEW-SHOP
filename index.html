@@ -47,10 +47,12 @@ del{color:#888;font-size:13px;font-weight:400}
 .phoneview{margin-top:12px;text-align:center}
 .phoneview img{max-height:300px;max-width:100%;object-fit:contain;border-radius:12px}
 @media(max-width:750px){.hero{grid-template-columns:1fr;padding:20px}.hero h1{font-size:34px}.hero .price{font-size:32px}.header{flex-wrap:wrap}}
+
+.phoneview{touch-action:pan-x;overflow:hidden;text-align:center}.phoneview img{width:100%;max-height:340px;object-fit:contain;border-radius:12px}.viewbuttons{display:flex;gap:7px;overflow-x:auto;margin:10px 0}.viewbuttons button{white-space:nowrap;background:#eee}
 </style>
 </head>
 <body>
-<div class="top"><span>🚚 Free Delivery (2–5 Days)</span><span>📱 iPhone Catalog</span><span>🏷️ Limited-Time Offers</span></div>
+<div class="top"><span>🚚 Free Delivery (2–5 Days)</span><span>📱 iPhone Catalog</span><span>🏷️ Limited-Time Offers</span><span>🛒 Cart: <b id="cartCount">0</b></span></div>
 <header class="header">
   <div class="logo">📱 NEW SHOP</div>
   <div class="search"><input id="search" placeholder="Search iPhone model, storage or color"><button class="black" onclick="filter()">Search</button></div>
@@ -128,21 +130,55 @@ function render(list=products.slice(0,40)){
       <h3>${p.name}</h3>
       <div class="meta">${p.storage} • ${p.color}</div>
       <div class="price">₹1,499 <del>₹2,499</del></div>
-      <button class="black" style="width:100%" onclick="openProduct(${p.id-1})">View Details</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px">
+  <button class="black" onclick="openProduct(${p.id-1})">View Details</button>
+  <button onclick="addToCart(${p.id})">Add to Cart</button>
+</div>
+<button class="black" style="width:100%;margin-top:7px" onclick="buyNow(${p.id})">Buy Now</button>
     </article>`).join('');
 }
 
 function openProduct(index){
   const p=products[index] || products[0];
+  const views=[p.img,p.img,p.img,p.img];
+  window.currentViews=views; window.currentView=0;
   document.getElementById('modalContent').innerHTML=`
     <h2>${p.name}</h2>
-    <div class="phoneview"><img src="${p.img}" alt=""></div>
-    <p><b>Storage:</b> ${p.storage}<br><b>Color:</b> ${p.color}</p>
-    <div class="price" style="font-size:26px">₹1,499 <del>₹2,499</del></div>
-    <p style="color:#666">Demo listing. Check real availability, authenticity, warranty and final price before ordering.</p>
-    <button class="black" onclick="closeModal()">Close</button>`;
+    <div class="phoneview"><img id="detailMainImg" src="${p.img}" alt="${p.name}"></div>
+    <div class="viewbuttons">
+      <button onclick="showView(0)">Front</button><button onclick="showView(1)">Back</button><button onclick="showView(2)">Side</button><button onclick="showView(3)">Charging</button>
+    </div>
+    <p><b>Model:</b> ${p.name}<br><b>Storage:</b> ${p.storage}<br><b>Color:</b> ${p.color}<br><b>Price:</b> ₹1,499 <del>₹2,499</del></p>
+    <p style="color:#666">Illustrative product visuals. Verify actual device, authenticity, warranty, stock and final price before purchase.</p>
+    <button class="black" onclick="addToCart(${p.id});closeModal()">Add to Cart</button>
+    <button class="black" style="margin-top:8px" onclick="buyNow(${p.id})">Buy Now</button>
+    <button onclick="closeModal()" style="margin-top:8px">Close</button>`;
   document.getElementById('modal').style.display='flex';
 }
+function showView(i){
+  window.currentView=i; const img=document.getElementById('detailMainImg');
+  if(img && window.currentViews) img.src=window.currentViews[i];
+}
+
+
+let cart = JSON.parse(localStorage.getItem('newshop_cart') || '[]');
+function updateCart(){
+  document.getElementById('cartCount').textContent = cart.length;
+  localStorage.setItem('newshop_cart', JSON.stringify(cart));
+}
+function addToCart(id){
+  const p=products.find(x=>x.id===id);
+  if(!p) return;
+  cart.push({id:p.id,name:p.name,storage:p.storage,color:p.color,price:1499});
+  updateCart();
+  alert(p.name+' added to cart.');
+}
+function buyNow(id){
+  const p=products.find(x=>x.id===id);
+  if(!p) return;
+  alert('Buy Now: '+p.name+'\\n\\nCheckout is ready for a verified payment gateway, but no customer payment is collected until a legitimate gateway is connected.');
+}
+
 function closeModal(){document.getElementById('modal').style.display='none';}
 function paymentInfo(){
   alert('Secure payment is not configured yet. Connect a verified payment gateway/merchant account before accepting customer payments.');
@@ -163,7 +199,9 @@ function startTimer(){
     if(s<=0) clearInterval(id); else s--;
   },1000);
 }
-render();startTimer();
+render();startTimer();updateCart();
+
+let swipeStartX=0;document.addEventListener('touchstart',e=>{if(e.touches.length===1)swipeStartX=e.touches[0].clientX},{passive:true});document.addEventListener('touchend',e=>{const img=document.getElementById('detailMainImg');if(!img||e.changedTouches.length!==1||!window.currentViews)return;const dx=e.changedTouches[0].clientX-swipeStartX;if(Math.abs(dx)>50){window.currentView=(window.currentView+(dx<0?1:-1)+window.currentViews.length)%window.currentViews.length;img.src=window.currentViews[window.currentView];}},{passive:true});
 </script>
 </body>
 </html>
