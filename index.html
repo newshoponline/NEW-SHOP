@@ -181,7 +181,7 @@ function buyNow(id){
 
 function closeModal(){document.getElementById('modal').style.display='none';}
 function paymentInfo(){
-  alert('Secure payment is not configured yet. Connect a verified payment gateway/merchant account before accepting customer payments.');
+  const upi='hackerking0982-3@oksbi'; const url='upi://pay?pa='+encodeURIComponent(upi)+'&pn='+encodeURIComponent('New Shop')+'&am=1499&cu=INR&tn='+encodeURIComponent('Payment to New Shop'); window.location.href=url;
 }
 function filter(){
   const q=document.getElementById('search').value.toLowerCase().trim();
